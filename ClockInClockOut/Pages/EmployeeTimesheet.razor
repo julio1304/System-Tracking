@@ -1,0 +1,180 @@
+﻿<!--
+Description: Employees can check their work history by selecting the date range and entering unique 4 digit code.
+The table will display all the records that the user clocked in/out
+Total Hours will be calculated based on the result
+-->
+
+@page "/EmployeeTimesheet"
+@using System.Linq
+@inject IEmployeeServices EmployeeService
+@inject IRecordServices RecordServices
+
+<!DOCTYPE html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        .header {
+            padding: 12px;
+            text-align: center;
+            font-family: Arial;
+            font-size: 12px;
+            border-radius: 25px;
+            color: Black;
+            background-color: #1569C7;
+            width: 100%;
+        }
+
+            .header img {
+                position: relative;
+                width: 200px;
+                height: 80px;
+                top: 0px;
+                right: 370px;
+            }
+
+            .header h1 {
+                position: center;
+                width: 100%;
+                text-align: center
+            }
+
+        .button {
+            border: none;
+            color: white;
+            width: 20%;
+            padding: 18px 36px;
+            text-align: center;
+            border-radius: 25px;
+            display: inline-block;
+            font-size: 16px;
+            position: relative;
+            margin: 4px 16px;
+            transition-duration: 0.3s;
+            cursor: pointer;
+        }
+
+        .input { /* 4 Digit code Button*/
+            border: solid black 1.5px;
+            color: black;
+            width: 15%;
+            padding: 18px 36px;
+            text-align: center;
+            border-radius: 25px;
+            display: inline-block;
+            font-size: 16px; /* Font size of date */
+            position: relative;
+            transition-duration: 0.3s;
+            cursor: pointer;
+        }
+
+            .input:hover { /* Use the :hover selector to change the style of the button when you move the mouse over it. */
+                color: black;
+                border: 2px solid #008CBA
+            }
+
+        .button3 {
+            background-color: #1569C7;
+            border-radius: 25px;
+            position: relative;
+            width: 11%;
+            height: 80px;
+            table-layout: fixed;
+            color: black;
+            border: 2px solid #008CBA; /* Blue */
+        }
+
+            .button3:hover { /* Use the :hover selector to change the style of the button when you move the mouse over it. */
+                background-color: #2860DE;
+                color: white;
+                border: 2px solid #008CBA
+            }
+
+        div {
+            text-align: center;
+        }
+    </style>
+</head>
+
+<div class="header">
+    <h1> <b>Employee - Timesheet</b></h1>
+</div>
+<br>
+
+<EditForm Model="employee" OnSubmit="HandleSubmit">
+    <div>
+        <label for="FirstDateRange"><b>&nbsp&nbsp&nbsp&nbspFrom:&nbsp&nbsp</b></label>
+        <InputDate id="FirstDateRange" @bind-Value="FirstDateRange" class="input"></InputDate>
+        <label for="SecondDateRange"><b>&nbsp&nbsp&nbsp&nbspTo:&nbsp&nbsp</b></label>
+        <InputDate id="SecondDateRange" @bind-Value="SecondDateRange" class="input"></InputDate>
+        <label for="IdNumber"><b>&nbsp&nbsp&nbsp&nbsp Employee ID&nbsp&nbsp</b></label>
+        <InputNumber id="IdNumber" @bind-Value="employee.IdNumber" class="input" placeholder="4 Digit Code"></InputNumber>
+        <button type="button" class="button3" @onclick="ResetEmployeeID" style="margin:0px 0px 0px 30px"><b>Clear</b></button>
+        <br><br>
+        <strong>Press "Clear" to clear search history</strong>
+    </div>
+</EditForm>
+<br>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Employee Name</th>
+            <th>Clock In Time</th>
+            <th>Clock Out Time</th>
+            <th>Hours Worked</th>
+        </tr>
+    </thead>
+    <tbody>
+        @ResetTotalHours()
+        @foreach (var record in RecordServices.Records.OrderBy(record => record.ClockInTime))
+        {
+            @if (employee.IdNumber == record.IdNumber && FirstDateRange <= record.ClockInTime && SecondDateRange.AddDays(1) >= record.ClockInTime)
+            {
+                <tr>
+                    <td>@record.EmployeeName</td>
+                    <td>@record.ClockInTime</td>
+                    <td>@record.ClockOutTime</td>
+                    <td>@Math.Round(record.TotalHoursWorked,2)</td>
+                    @AddHours(record.TotalHoursWorked)
+                </tr>
+            }
+        }
+    </tbody>
+</table>
+<div>
+    <strong>Total Hours Worked:</strong>
+    <input class="input" type="number" value="@Math.Round(totalHours,2)" style="background-color:#ECECEC" readonly />
+</div>
+
+
+@code {
+    Employee employee = new Employee();
+    Record record = new Record();
+    DateTime FirstDateRange = DateTime.Today.Date;
+    DateTime SecondDateRange = DateTime.Today.Date;
+    double totalHours;
+
+    private string AddHours(double hours)
+    {
+        totalHours += hours;
+        return "";
+    }
+
+    private string ResetTotalHours()
+    {
+        totalHours = 0;
+        return "";
+    }
+
+    async Task ResetEmployeeID()
+    {
+        employee.IdNumber = 0;
+    }
+
+    async Task HandleSubmit()
+    {
+        totalHours = 0;
+        await RecordServices.LoadRecord();
+        Record record = new Record();
+    }
+}

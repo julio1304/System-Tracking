@@ -1,0 +1,267 @@
+﻿<!--
+Description: Admin can export the data into a .csv file and open it with Excel. Also, the admin can delete the database by selecting the date range.
+
+-->
+
+@page "/AdminExportDelete"
+@inject NavigationManager NavigationManager
+@inject IRecordServices RecordServices
+@inject IJSRuntime jsRuntime
+@inject IJSRuntime JS
+@using System.IO
+@using System.Text;
+
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Add icon library -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+    <style>
+        .label {
+            display: block;
+            float: left;
+            font: 1rem 'Fira Sans', sans-serif;
+        }
+
+        input,
+        .label {
+            margin: 10px;
+            border: 1.5px solid black;
+            padding: 20px;
+            display: inline-block;
+            border-radius: 25px;
+            font-size: 16px;
+            width: 35%; /* Font size of date */
+            position: relative;
+            text-align: center;
+        }
+
+            .label:hover { /* Use the :hover selector to change the style of the button when you move the mouse over it. */
+                background-color: #2860DE;
+                border: 2px solid #008CBA;
+            }
+
+        .header {
+            padding: 12px;
+            text-align: center;
+            font-family: Arial;
+            font-size: 12px;
+            color: Black;
+            border-radius: 25px;
+            background-color: #1569C7;
+            width: 100%;
+        }
+
+            .header h1 {
+                position: center;
+                width: 100%;
+                top: 12px;
+                left: 6px;
+            }
+
+        .btnexportdata {
+            background-color: #1569C7;
+            color: black;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 25px 50px 50px 25px;
+            position: center;
+            border-radius: 25px;
+            display: inline-block;
+            margin: 2px 10px;
+            transition-duration: 0.3s;
+            float: left;
+            table-layout: fixed; /* Width of the buttons */
+            border: none; /* Blue */
+            width: 40%;
+            height: 40px;
+        }
+            /* Darker background on mouse-over */
+            .btnexportdata:hover { /* Use the :hover selector to change the style of the button when you move the mouse over it. */
+                background-color: #2860DE;
+                border: 2px solid #008CBA;
+                color: white;
+            }
+
+        .btndeletedata {
+            background-color: red;
+            color: black;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 25px 50px 50px 25px;
+            position: center;
+            border-radius: 25px;
+            display: inline-block;
+            margin: 2px 10px;
+            transition-duration: 0.3s;
+            float: left;
+            table-layout: fixed; /* Width of the buttons */
+            border: none; /* Blue */
+            width: 40%;
+            height: 40px;
+        }
+
+            /* Darker background on mouse-over */
+            .btndeletedata:hover { /* Use the :hover selector to change the style of the button when you move the mouse over it. */
+                background-color: darkred;
+                border: 2px solid #008CBA;
+                color: white;
+            }
+
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1> <b> Admin - Export/Delete </b></h1>
+    </div>
+    <br>
+
+    <table style="width:100%">
+        <td style="width:55%">
+            <!-- <label for="start">From:</label> -->
+            <EditForm Model="record" OnSubmit="HandleSubmit">
+                <label for="FirstDateRange"><b>From:</b></label>
+                <InputDate id="FirstDateRange" @bind-Value="FirstDateRange" class="input"></InputDate>
+                <label for="SecondDateRange"><b>To:</b></label>
+                <InputDate id="SecondDateRange" @bind-Value="SecondDateRange" class="input"></InputDate>
+            </EditForm>
+            <br><br>
+                <EditForm Model="record" OnSubmit="ExportSetData">
+                    <div>
+                        <button class="btnexportdata">
+                            <i class="oi oi-file"></i>Export
+                        </button>
+                    </div>
+                </EditForm>
+
+                <EditForm Model="record" OnSubmit="DeleteData">
+                    <div>
+                        <button class="btndeletedata">
+                            <i class="fa fa-trash"></i>Delete
+                        </button>
+                    </div>
+                </EditForm>
+        </td>
+        <td>
+            <strong>To Export</strong><hr>
+            1. Specify the date range <br>
+            2. When the Export button is pressed, an excel file (.csv) will be downloaded to local storage <br><br>
+            <strong>To Delete</strong><p style="color:red">Warning!! Deleted records cannot be restored. </p><hr>
+            1. Specify the date range <br>
+            2. When the Delete button is pressed, the program will ask the user to confirm the deletion. <br>
+            3. Press "okay" to confirm or "cancel" to NOT delete <br>
+        </td>
+    </table>
+
+</body>
+</html>
+
+
+
+
+@code {
+    Record record = new Record();
+    DateTime FirstDateRange = DateTime.Today.Date;
+    DateTime SecondDateRange = DateTime.Today.Date;
+
+    // load record database when the program starts
+    async Task HandleSubmit()
+    {
+        //do nothing
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        await RecordServices.LoadRecord();
+    }
+
+    async Task DeleteData()
+    {
+        bool dataDeleted = false;
+        // delete confirmation message
+        if (await jsRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete the records??"))
+        {
+            foreach (var record in RecordServices.Records) // delete existing records that matches the date range
+            {
+                if (FirstDateRange <= record.ClockInTime && SecondDateRange.AddDays(1) >= record.ClockInTime)
+                {
+                    await RecordServices.DeleteRecord2(record.ItemNumber);
+                    dataDeleted = true;
+                }
+            }
+        }
+        // error handling
+        if (dataDeleted)
+        {
+            await jsRuntime.InvokeVoidAsync("alert", "Data Record is deleted.");
+        }
+        else
+        {
+            await jsRuntime.InvokeVoidAsync("alert", "No Data Deleted.");
+
+        }
+
+    }
+    private Stream GetFileStream()
+    {
+        //ExportFile will have all the records and header info
+        List<string> ExportFile = new List<string>();
+        //Manually creating header for each column
+        var header = new StringBuilder();
+        header.Append("Employee ID");
+        header.Append(",");
+        header.Append("Name");
+        header.Append(",");
+        header.Append("Clock In Time");
+        header.Append(",");
+        header.Append("Clock Out Time");
+        header.Append(",");
+        header.Append("Hours Worked");
+        ExportFile.Add(header.ToString());
+
+        //Add all records that meets the date range requirement
+        foreach (var record in RecordServices.Records)
+        {
+            if (FirstDateRange <= record.ClockInTime && SecondDateRange.AddDays(1) >= record.ClockOutTime)
+            {
+                var builder = new StringBuilder();
+                builder.Append(record.IdNumber);
+                builder.Append(",");
+                builder.Append(record.EmployeeName);
+                builder.Append(",");
+                builder.Append(record.ClockInTime);
+                builder.Append(",");
+                builder.Append(record.ClockOutTime);
+                builder.Append(",");
+                builder.Append(record.TotalHoursWorked);
+                ExportFile.Add(builder.ToString());
+            }
+        }
+        byte[] result = ExportFile.SelectMany(s =>
+           System.Text.Encoding.UTF8.GetBytes(s + Environment.NewLine)).ToArray();
+        var fileStream = new MemoryStream(result);
+
+        return fileStream;
+    }
+
+    private async Task ExportSetData()
+    {
+        var fileStream = GetFileStream();
+        var fileName = "ExportFile.csv";
+
+        using var streamRef = new DotNetStreamReference(stream: fileStream);
+
+        await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+    }
+
+    private async Task DownloadFileFromURL()
+    {
+        var fileURL = "{FILE URL}";
+        var fileName = "{FILE NAME}";
+        await JS.InvokeVoidAsync("triggerFileDownload", fileName, fileURL);
+    }
+}

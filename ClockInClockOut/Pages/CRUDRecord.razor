@@ -1,0 +1,98 @@
+﻿<!--
+Description: allows admin to perform "Create" "Read" "Update" and "Delete" functionalities to clock in/out records
+-->
+@page "/CRUDRecord"
+@page "/CRUDRecord/{ItemNumber:int}"
+@attribute [Authorize]
+@inject IRecordServices RecordServices
+@inject IEmployeeServices EmployeeServices
+<style>
+    .form-control {
+        width: 50%;
+    }
+</style>
+@if (itemNumber == null)
+{
+    <h3>Create A New Record</h3>
+}
+else
+{
+    <h3>Edit "@record.EmployeeName"</h3>
+}
+
+
+<EditForm Model="record" OnSubmit="HandleSubmit">
+    <div>
+        <label for="IdNumber">Employee ID</label>
+        <InputNumber id="IdNumber" @bind-Value="record.IdNumber" class="form-control"></InputNumber>
+    </div>
+    <div>
+        <label for="Name">Employee Name</label>
+        <Input class="form-control" value="Loaded from the Employee Database" readonly>
+    </div>
+    <div>
+        <label for="ClockInTime">Clock In Time</label>
+        <InputDateTime id="ClockInTime" @bind-Value="record.ClockInTime" class="form-control"></InputDateTime>
+    </div>
+
+    <div>
+        <label for="ClockOutTime">Clock Out Time</label>
+        <InputDateTime id="ClockOutTime" @bind-Value="record.ClockOutTime" class="form-control"></InputDateTime>
+    </div>
+    <div>
+        <label for="Hours">Hours Worked</label>
+        <Input class="form-control" value="Auto-Calculated" readonly>
+    </div>
+    <br />
+    <button type="submit" class="btn btn-primary">@btnText</button>
+    @if (itemNumber != null)
+    {
+        <button type="button" class="btn btn-danger" @onclick="DeleteRecord">Delete Record</button>
+    }
+</EditForm>
+
+@code
+{
+    [Parameter]
+    public int? itemNumber { get; set; }
+    string btnText = string.Empty;
+    Record record = new Record();
+    Employee employee = new Employee();
+
+    protected override void OnInitialized()
+    {
+        btnText = itemNumber == null ? "Save new Record" : "Update Record";
+
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (itemNumber == null)
+        {
+            //do nothing
+        }
+        else
+        {
+            record = await RecordServices.GetRecord((int)itemNumber);
+        }
+    }
+
+    async Task HandleSubmit()
+    {
+        if (itemNumber == null)
+        {
+            employee = await EmployeeServices.GetEmployee((int)record.IdNumber);
+            record.EmployeeName = employee.FirstName + " " + employee.LastName;
+            await RecordServices.CreateRecord(record);
+        }
+        else
+        {
+            await RecordServices.UpdateRecord(record, (int)itemNumber);
+        }
+    }
+
+    async Task DeleteRecord()
+    {
+        await RecordServices.DeleteRecord(record.ItemNumber);
+    }
+}

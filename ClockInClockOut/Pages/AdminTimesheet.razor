@@ -1,0 +1,222 @@
+﻿<!--
+Description: Admin to look at all the clock in/out records.
+Admin can specify the date and employee ID to filter the result.
+When Employee ID is entered, total hours will be displayed
+-->
+@page "/AdminTimesheet"
+@attribute [Authorize]
+@using System.Linq
+@inject IRecordServices RecordServices
+@inject NavigationManager NavigationManager
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        .header {
+            padding: 12px;
+            text-align: center;
+            font-family: Arial;
+            font-size: 12px;
+            color: Black;
+            border-radius: 25px;
+            background-color: #1569C7;
+            width: 100%;
+        }
+
+            .header h1 {
+                position: center;
+                width: 100%;
+                top: 12px;
+                left: 6px;
+            }
+
+        .input { /* 4 Digit code Button*/
+            border: solid black 1.5px;
+            color: black;
+            width: 15%;
+            padding: 18px 36px;
+            text-align: center;
+            border-radius: 25px;
+            display: inline-block;
+            font-size: 16px; /* Font size of date */
+            position: relative;
+            transition-duration: 0.3s;
+            cursor: pointer;
+        }
+
+            .input:hover { /* Use the :hover selector to change the style of the button when you move the mouse over it. */
+                color: black;
+                border: 2px solid #008CBA
+            }
+
+        .button3 {
+            background-color: lightskyblue;
+            border-radius: 25px;
+            position: relative;
+            width: 30%;
+            height: 80px;
+            table-layout: fixed;
+            color: black;
+            border: 2px solid lightskyblue; /* Blue */
+        }
+
+            .button3:hover { /* Use the :hover selector to change the style of the button when you move the mouse over it. */
+                background-color: #2860DE;
+                color: white;
+                border: 2px solid #008CBA
+            }
+
+        .btn-primary {
+            background-color: #1569C7;
+            color: black;
+            padding: 0px;
+            position: relative;
+            left: 0%;
+            top: 0%;
+            height: 40px;
+            width: 40px;
+            border-radius: 25px;
+            text-align: center;
+            /*display: inline-block;*/
+            /*margin: 20px;*/
+            transition-duration: 0.3s
+        }
+            /* Darker background on mouse-over */
+            .btn-primary:hover { /* Use the :hover selector to change the style of the button when you move the mouse over it. */
+                background-color: #2860DE;
+                border: solid #008CBA;
+                color: white;
+            }
+
+        div {
+            text-align: center;
+        }
+
+    </style>
+</head>
+<div class="header">
+    <h1> <b>Admin - Timesheet</b></h1>
+</div>
+<br>
+<div>
+    <EditForm Model="employee" OnSubmit="HandleSubmit">
+        <label for="FirstDateRange"><b>&nbsp&nbsp&nbsp&nbspFrom:&nbsp&nbsp</b></label>
+        <InputDate id="FirstDateRange" @bind-Value="FirstDateRange" class="input"></InputDate>
+        <label for="SecondDateRange"><b>&nbsp&nbsp&nbsp&nbspTo:&nbsp&nbsp</b></label>
+        <InputDate id="SecondDateRange" @bind-Value="SecondDateRange" class="input"></InputDate>
+        <label for="IdNumber"><b>&nbsp&nbsp&nbsp&nbsp Employee ID:&nbsp&nbsp&nbsp&nbsp </b></label>
+        <InputNumber id="IdNumber" @bind-Value="employee.IdNumber" class="input" placeholder="type 0 to search all"></InputNumber>
+
+    </EditForm>
+</div>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Employee ID</th>
+            <th>Name</th>
+            <th>Clock In Time</th>
+            <th>Clock OUT Time</th>
+            <th>Hours Worked</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        @ResetTotalHours()
+        <!--list record for filtering ID,From,To-->
+        @if (employee.IdNumber > 0)
+        {
+            @foreach (var record in RecordServices.Records.OrderBy(record => record.ClockInTime)) //sort by clock in date and time
+            {
+                <tr>
+                    @if (record.IdNumber == employee.IdNumber && FirstDateRange <= record.ClockInTime && SecondDateRange.AddDays(1) >= record.ClockInTime)
+                    {
+                        <td>@record.IdNumber</td>
+                        <td>@record.EmployeeName</td>
+                        <td>@record.ClockInTime</td>
+                        <td>@record.ClockOutTime</td>
+                        <td>@Math.Round(record.TotalHoursWorked,2)</td>
+                        <td>
+                            <button class="btn btn-primary" @onclick="(()=> ShowRecord(record.ItemNumber))">
+                                <i class="oi oi-pencil"></i>
+                            </button>
+                        </td>
+                        @AddHours(record.TotalHoursWorked)
+                    }
+                </tr>
+            }
+        }
+        else
+        {
+            <!--list record for filtering From,To-->
+            @foreach (var record in RecordServices.Records.OrderBy(record => record.ClockInTime)) //sort by clock in date and time
+            {
+                <tr>
+                    @if (record.IdNumber != employee.IdNumber && FirstDateRange <= record.ClockInTime && SecondDateRange.AddDays(1) >= record.ClockInTime)
+                    {
+                        <td>@record.IdNumber</td>
+                        <td>@record.EmployeeName</td>
+                        <td>@record.ClockInTime</td>
+                        <td>@record.ClockOutTime</td>
+                        <td>@Math.Round(record.TotalHoursWorked,2)</td>
+                        <td>
+                            <button class="btn btn-primary" @onclick="(()=> ShowRecord(record.ItemNumber))">
+                                <i class="oi oi-pencil"></i>
+                            </button>
+                        </td>
+                    }
+                </tr>
+            }
+        }
+    </tbody>
+</table>
+@if (employee.IdNumber > 0)
+{
+    <div>
+        <strong>Total Hours Worked:</strong>
+        <input class="input" type="number" value="@Math.Round(totalHours,2)" style="background-color:#ECECEC" readonly />
+    </div>
+}
+<br>
+<button class="button3" @onclick="CreateNewRecord">Create New Record</button>
+
+@code {
+    Employee employee = new Employee();
+    Record record = new Record();
+    DateTime FirstDateRange = DateTime.Today.Date;
+    DateTime SecondDateRange = DateTime.Today.Date;
+    double totalHours;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RecordServices.LoadRecord();
+    }
+
+    private string AddHours(double hours)
+    {
+        totalHours += hours;
+        return "";
+    }
+
+    private string ResetTotalHours()
+    {
+        totalHours = 0;
+        return "";
+    }
+
+    async Task HandleSubmit()
+    {
+        this.record = new Record();
+        await RecordServices.LoadRecord();
+        totalHours = 0;
+    }
+    void ShowRecord(int ItemNumber)
+    {
+        NavigationManager.NavigateTo($"CRUDRecord/{ItemNumber}");
+
+    }
+    void CreateNewRecord()
+    {
+        NavigationManager.NavigateTo("CRUDRecord");
+    }
+}
